@@ -64,6 +64,10 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
+            const res = await self.validateChain();
+            if(!res) {
+                reject(new Error('Chain is not valid!'))
+            }
             let height = await this.getChainHeight();
             block.height = height + 1;
             block.time = new Date().getTime().toString().slice(0, -3);
@@ -73,8 +77,8 @@ class Blockchain {
             block.hash = SHA256(JSON.stringify(block)).toString();
             this.chain.push(block);
             this.height++;
-            self.validateChain();
-            resolve(block)
+            resolve(block);
+            reject('Error while executing');
 
         });
     }
@@ -121,10 +125,10 @@ class Blockchain {
                 if(bitcoinMessage.verify(message, address, signature)) {
                     let data = {
                         star,
-                        owner: message.split(':')[0]
+                        owner: address
                     };
                     let block = new BlockClass.Block(data);
-                    self._addBlock(block);
+                    await self._addBlock(block);
                     resolve(block);
                 }else {
                     reject('Message is invalid!')
@@ -179,14 +183,16 @@ class Blockchain {
     getStarsByWalletAddress (address) {
         let self = this;
         let stars = [];
-        return new Promise((resolve, reject) => {
-            self.chain.forEach(block => {
-                let blockData = block.getBData()
+        return new Promise(async (resolve, reject) => {
+            let height = await this.getChainHeight();
+            for (let i = 1; i <= height; i++) {
+                let blockData = await self.chain[i].getBData();
                 if(blockData && blockData.owner === address) {
                     stars.push(blockData);
                  }
-            });
+            }
             resolve(stars);
+            reject(new Error('Error getting the data!'))
         });
     }
 
@@ -204,16 +210,16 @@ class Blockchain {
             let previousHash = null;
             let height = await this.getChainHeight();
             for(let i = 0; i < height; i++) {
-                self.chain[i].validate().then(res => {
-                    !res && errorLog.push({error: `${new Date()} Error on block: [${self.chain[i].hash}], on hight:[${self.chain[i].height}]. Block was probably changed!`}) ;
-                    if(i > 0) {
-                        self.chain[i].previousBlockHash !== previousHash 
-                        && errorLog.push({error: `Error on block: [${self.chain[i].hash}], on hight:[${self.chain[i].height}]. Block broke the chain!`})
-                    }
-                    previousHash = self.chain[i].hash
-                })
+                let res = await self.chain[i].validate();
+                !res && errorLog.push({error: `${new Date()} Error on block: [${self.chain[i].hash}], on hight:[${self.chain[i].height}]. Block was probably changed!`}) ;
+                if(i > 0) {
+                    self.chain[i].previousBlockHash !== previousHash 
+                    && errorLog.push({error: `Error on block: [${self.chain[i].hash}], on hight:[${self.chain[i].height}]. Block broke the chain!`})
+                }
+                previousHash = self.chain[i].hash
             }
-            resolve(errorLog)
+            resolve(errorLog);
+            reject(new Error('There was an error in validating chain!'))
         });
     }
 

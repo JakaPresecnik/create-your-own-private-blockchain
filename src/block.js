@@ -45,7 +45,14 @@ class Block {
             self.hash = SHA256(JSON.stringify(self)).toString();
           // Comparing if the hashes changed
           // Returning the Block is not valid
-            resolve(blockHash === self.hash)
+          if(blockHash === self.hash) {
+            self.hash = blockHash;
+            resolve(true)
+          }else {
+            self.hash = blockHash;
+            resolve(false)
+          }
+            
           // Returning the Block is valid
 
         });
@@ -64,13 +71,15 @@ class Block {
         // Getting the encoded data saved in the Block
         // Decoding the data to retrieve the JSON representation of the object
         // Parse the data to an object to be retrieve.
-        
+        return new Promise((resolve, reject) => {
         // Resolve with the data if the object isn't the Genesis block
         if(this.height > 0) {
-          return JSON.parse(hex2ascii(this.body));
-        }   
-    }
-
+          resolve(JSON.parse(hex2ascii(this.body)));
+        }else {
+          reject(new Error('Error getting blocks data!'))
+        }
+    })
+  }
 }
 
 module.exports.Block = Block;                    // Exposing the Block class as a module
