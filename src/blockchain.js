@@ -64,22 +64,23 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-            const res = await self.validateChain();
-            if(!res) {
-                reject(new Error('Chain is not valid!'))
-            }
-            let height = await this.getChainHeight();
-            block.height = height + 1;
-            block.time = new Date().getTime().toString().slice(0, -3);
-            if(this.height >= 0) {
-                block.previousBlockHash = self.chain[height].hash;
-            }
-            block.hash = SHA256(JSON.stringify(block)).toString();
-            this.chain.push(block);
-            this.height++;
-            resolve(block);
-            reject('Error while executing');
+            const errLog = await self.validateChain();
 
+            if(errLog.length > 0) {
+                resolve('There is an error in the chain!');
+            }else {
+                let height = await this.getChainHeight();
+                block.height = height + 1;
+                block.time = new Date().getTime().toString().slice(0, -3);
+                if(this.height >= 0) {
+                    block.previousBlockHash = self.chain[height].hash;
+                }
+                block.hash = SHA256(JSON.stringify(block)).toString();
+                this.chain.push(block);
+                this.height++;
+                resolve(block);
+                reject('Error while executing');
+            }
         });
     }
 
@@ -128,8 +129,8 @@ class Blockchain {
                         owner: address
                     };
                     let block = new BlockClass.Block(data);
-                    await self._addBlock(block);
-                    resolve(block);
+                    let newBlock = await self._addBlock(block);
+                    resolve(newBlock);
                 }else {
                     reject('Message is invalid!')
                 }
@@ -191,8 +192,11 @@ class Blockchain {
                     stars.push(blockData);
                  }
             }
-            resolve(stars);
-            reject(new Error('Error getting the data!'))
+            if(stars.length > 0) {
+                resolve(stars);
+            }else {
+                reject(new Error('Error getting the data!'))
+            }
         });
     }
 
@@ -218,8 +222,11 @@ class Blockchain {
                 }
                 previousHash = self.chain[i].hash
             }
-            resolve(errorLog);
-            reject(new Error('There was an error in validating chain!'))
+            if(errorLog) {
+                resolve(errorLog);
+            }else {
+                reject(new Error('There was an error in validating chain!'))
+            }
         });
     }
 
